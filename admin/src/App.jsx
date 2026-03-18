@@ -7,6 +7,7 @@ const App = () => {
   
   const [categories, setCategories] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [jobs, setJobs] = useState([]);
   const [newCatName, setNewCatName] = useState("");
   const [newPrices, setNewPrices] = useState({ daily: "", weekly: "", monthly: "" });
   const [editingId, setEditingId] = useState(null);
@@ -14,6 +15,7 @@ const App = () => {
   useEffect(() => {
     fetchCategories();
     fetchProfiles();
+    fetchJobs();
     
     const catChannel = supabase.channel('categories-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => fetchCategories())
@@ -23,9 +25,14 @@ const App = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => fetchProfiles())
       .subscribe();
 
+    const jobsChannel = supabase.channel('jobs-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => fetchJobs())
+      .subscribe();
+
     return () => {
       supabase.removeChannel(catChannel);
       supabase.removeChannel(profileChannel);
+      supabase.removeChannel(jobsChannel);
     };
   }, []);
 
@@ -37,6 +44,11 @@ const App = () => {
   const fetchProfiles = async () => {
     const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
     if (data) setProfiles(data);
+  };
+
+  const fetchJobs = async () => {
+    const { data } = await supabase.from('jobs').select('*');
+    if (data) setJobs(data);
   };
 
   // --- Category Management ---
@@ -79,25 +91,39 @@ const App = () => {
   };
 
   // Render Functions
-  const renderDashboard = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
-      <Card style={{ borderTop: `4px solid ${Theme.colors.primary}` }}>
-        <h3 style={{ color: Theme.colors.muted, margin: '0 0 1rem 0' }}>Total Revenue (Est)</h3>
-        <h1 style={{ fontSize: '2.5rem', margin: 0 }}>KES 452,500</h1>
-        <p style={{ color: '#4ade80', fontSize: '0.8rem', marginTop: '0.5rem' }}>+12% from last month</p>
-      </Card>
-      <Card style={{ borderTop: `4px solid ${Theme.colors.secondary}` }}>
-        <h3 style={{ color: Theme.colors.muted, margin: '0 0 1rem 0' }}>Active Workers</h3>
-        <h1 style={{ fontSize: '2.5rem', margin: 0 }}>{profiles.filter(p => p.role === 'worker' && p.is_online).length}</h1>
-        <p style={{ color: Theme.colors.muted, fontSize: '0.8rem', marginTop: '0.5rem' }}>Total registered: {profiles.filter(p => p.role === 'worker').length}</p>
-      </Card>
-      <Card style={{ borderTop: `4px solid #a855f7` }}>
-        <h3 style={{ color: Theme.colors.muted, margin: '0 0 1rem 0' }}>Active BNB Contracts</h3>
-        <h1 style={{ fontSize: '2.5rem', margin: 0 }}>18</h1>
-        <p style={{ color: Theme.colors.muted, fontSize: '0.8rem', marginTop: '0.5rem' }}>Monthly recurring</p>
-      </Card>
-    </div>
-  );
+  const renderDashboard = () => {
+    // Calculate total revenue (completed jobs)
+    const totalRevenue = jobs.filter(j => j.status === 'completed' || j.status === 'verified_by_client')
+                             .reduce((sum, job) => sum + (job.price || 0), 0);
+                             
+    // Calculate active BNB contracts
+    const activeContracts = jobs.filter(j => j.duration === 'Monthly' && j.status === 'active').length;
+
+    // Active workers and clients
+    const activeWorkers = profiles.filter(p => p.role === 'worker' && p.is_online).length;
+    const totalWorkers = profiles.filter(p => p.role === 'worker').length;
+    const activeClients = profiles.filter(p => p.role === 'client' && p.is_online).length;
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+        <Card style={{ borderTop: `4px solid ${Theme.colors.primary}` }}>
+          <h3 style={{ color: Theme.colors.muted, margin: '0 0 1rem 0' }}>Total Revenue</h3>
+          <h1 style={{ fontSize: '2.5rem', margin: 0 }}>KES {totalRevenue.toLocaleString()}</h1>
+          <p style={{ color: '#4ade80', fontSize: '0.8rem', marginTop: '0.5rem' }}>Based on completed jobs</p>
+        </Card>
+        <Card style={{ borderTop: `4px solid ${Theme.colors.secondary}` }}>
+          <h3 style={{ color: Theme.colors.muted, margin: '0 0 1rem 0' }}>Network Activity</h3>
+          <h1 style={{ fontSize: '2.5rem', margin: 0 }}>{activeWorkers} <span style={{fontSize:'1rem', color: Theme.colors.muted}}>W</span> / {activeClients} <span style={{fontSize:'1rem', color: Theme.colors.muted}}>C</span></h1>
+          <p style={{ color: Theme.colors.muted, fontSize: '0.8rem', marginTop: '0.5rem' }}>Total registered workers: {totalWorkers}</p>
+        </Card>
+        <Card style={{ borderTop: `4px solid #a855f7` }}>
+          <h3 style={{ color: Theme.colors.muted, margin: '0 0 1rem 0' }}>Active BNB Contracts</h3>
+          <h1 style={{ fontSize: '2.5rem', margin: 0 }}>{activeContracts}</h1>
+          <p style={{ color: Theme.colors.muted, fontSize: '0.8rem', marginTop: '0.5rem' }}>Monthly recurring</p>
+        </Card>
+      </div>
+    );
+  };
 
   const renderWorkers = () => (
     <Card>
@@ -151,13 +177,15 @@ const App = () => {
 
   const renderMap = () => {
     const onlineWorkers = profiles.filter(p => p.role === 'worker' && p.is_online);
+    const onlineClients = profiles.filter(p => p.role === 'client' && p.is_online);
+    const totalOnline = onlineWorkers.length + onlineClients.length;
     
     return (
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <h3 style={{ margin: 0 }}>Live GPS Monitoring (Status)</h3>
           <span style={{ padding: '0.4rem 1rem', background: 'rgba(74, 222, 128, 0.1)', color: '#4ade80', borderRadius: '20px', fontSize: '0.8rem' }}>
-            {onlineWorkers.length} Workers Active Now
+            {totalOnline} Users Active Now
           </span>
         </div>
         
@@ -165,17 +193,27 @@ const App = () => {
           {/* Faux Map Background */}
           <div style={{ position: 'absolute', inset: 0, opacity: 0.1, backgroundImage: 'radial-gradient(circle at 50% 50%, #3b82f6 2px, transparent 2px)', backgroundSize: '20px 20px' }}></div>
           
-          {onlineWorkers.length > 0 ? (
-            onlineWorkers.map((worker, i) => (
-              <div key={worker.id} className="animate-float" style={{ position: 'absolute', top: `${Math.max(10, Math.min(80, 20 + (i * 17)))}%`, left: `${Math.max(10, Math.min(80, 15 + (i * 25)))}%`, textAlign: 'center' }}>
-                <div style={{ width: '12px', height: '12px', background: '#4ade80', borderRadius: '50%', margin: '0 auto', boxShadow: '0 0 10px #4ade80' }}></div>
-                <div style={{ background: 'rgba(0,0,0,0.7)', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.7rem', marginTop: '0.5rem', whiteSpace: 'nowrap' }}>
-                  {worker.full_name} ({worker.expertise})
+          {totalOnline > 0 ? (
+            <>
+              {onlineWorkers.map((worker, i) => (
+                <div key={worker.id} className="animate-float" style={{ position: 'absolute', top: `${Math.max(10, Math.min(80, 20 + (i * 17)))}%`, left: `${Math.max(10, Math.min(80, 15 + (i * 25)))}%`, textAlign: 'center' }}>
+                  <div style={{ width: '12px', height: '12px', background: '#4ade80', borderRadius: '50%', margin: '0 auto', boxShadow: '0 0 10px #4ade80' }}></div>
+                  <div style={{ background: 'rgba(0,0,0,0.7)', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.7rem', marginTop: '0.5rem', whiteSpace: 'nowrap' }}>
+                    {worker.full_name} ({worker.expertise})
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+              {onlineClients.map((client, i) => (
+                <div key={client.id} className="animate-float" style={{ animationDelay: '1s', position: 'absolute', top: `${Math.max(10, Math.min(80, 70 - (i * 17)))}%`, left: `${Math.max(10, Math.min(80, 60 - (i * 25)))}%`, textAlign: 'center' }}>
+                  <div style={{ width: '12px', height: '12px', background: '#3b82f6', borderRadius: '50%', margin: '0 auto', boxShadow: '0 0 10px #3b82f6' }}></div>
+                  <div style={{ background: 'rgba(0,0,0,0.7)', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.7rem', marginTop: '0.5rem', whiteSpace: 'nowrap' }}>
+                    {client.full_name} (Client)
+                  </div>
+                </div>
+              ))}
+            </>
           ) : (
-            <p style={{ color: Theme.colors.muted, zIndex: 1 }}>No workers currently on duty.</p>
+            <p style={{ color: Theme.colors.muted, zIndex: 1 }}>No users currently online.</p>
           )}
         </div>
       </Card>

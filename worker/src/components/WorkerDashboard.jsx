@@ -12,17 +12,68 @@ const WorkerDashboard = ({ user, onLogout }) => {
   const [portfolioImages, setPortfolioImages] = useState(user?.portfolio_images || []);
   const [uploading, setUploading] = useState(false);
   const [calling, setCalling] = useState(null);
+  const [isSuspended, setIsSuspended] = useState(user?.is_suspended || false);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [earnings, setEarnings] = useState({ total: 0, jobs: 0 });
 
   useEffect(() => {
     fetchCategories();
+    fetchPendingRequests();
+    fetchEarnings();
 
     const channel = supabase
       .channel('worker-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => fetchCategories())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, (payload) => {
+        setIsSuspended(payload.new.is_suspended);
+        if (payload.new.is_suspended) {
+          setOnDuty(false);
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jobs', filter: `worker_id=eq.${user.id}` }, () => {
+        setNotif("New Direct Request from a Client!");
+        fetchPendingRequests();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jobs', filter: `worker_id=eq.${user.id}` }, () => {
+        fetchPendingRequests();
+        fetchEarnings();
+      })
       .subscribe();
 
     return () => supabase.removeChannel(channel);
   }, []);
+
+  const fetchEarnings = async () => {
+    const { data } = await supabase
+      .from('jobs')
+      .select('price')
+      .eq('worker_id', user.id)
+      .eq('status', 'completed');
+    if (data) {
+      const total = data.reduce((sum, job) => sum + job.price, 0);
+      setEarnings({ total, jobs: data.length });
+    }
+  };
+
+
+  const fetchPendingRequests = async () => {
+    const { data } = await supabase
+      .from('jobs')
+      .select('*, client:profiles!client_id(full_name, phone_number)')
+      .eq('worker_id', user.id)
+      .eq('status', 'pending');
+    if (data) setPendingRequests(data);
+  };
+
+  const handleJobAction = async (jobId, newStatus) => {
+    const { error } = await supabase.from('jobs').update({ status: newStatus }).eq('id', jobId);
+    if (!error) {
+      setNotif(newStatus === 'active' ? "Request accepted! Starting job..." : "Request declined.");
+      fetchPendingRequests();
+    } else {
+      setNotif("Failed: " + error.message);
+    }
+  };
 
   const fetchCategories = async () => {
     const { data } = await supabase.from('categories').select('*').order('name');
@@ -118,7 +169,17 @@ const WorkerDashboard = ({ user, onLogout }) => {
         </div>
       </header>
 
-      {!selectedCategory ? (
+      {isSuspended ? (
+        <Card style={{ textAlign: 'center', padding: '4rem 2rem', border: '1px solid #ef4444' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⚠️</div>
+          <h2 style={{ color: '#ef4444', marginBottom: '1rem' }}>Account Suspended</h2>
+          <p style={{ color: Theme.colors.muted, maxWidth: '400px', margin: '0 auto' }}>
+            Your Vigilance account has been suspended by an administrator due to a policy violation or pending investigation. 
+            You cannot accept new jobs or go on duty at this time.
+          </p>
+          <Button style={{ marginTop: '2rem', background: '#ef4444' }} onClick={onLogout}>Sign Out</Button>
+        </Card>
+      ) : !selectedCategory ? (
         <Card style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <h2 style={{ marginBottom: '2rem' }}>What service are you offering today?</h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center', marginBottom: '2rem' }}>
@@ -170,8 +231,8 @@ const WorkerDashboard = ({ user, onLogout }) => {
 
             <Card style={{ borderLeft: `4px solid ${Theme.colors.primary}` }}>
               <h3>Earnings</h3>
-              <h2 style={{ fontSize: '2rem', margin: '1rem 0' }}>KES 0</h2>
-              <p style={{ fontSize: '0.8rem', color: Theme.colors.muted }}>This Month • 0 Jobs</p>
+              <h2 style={{ fontSize: '2rem', margin: '1rem 0' }}>KSh {earnings.total.toLocaleString()}</h2>
+              <p style={{ fontSize: '0.8rem', color: Theme.colors.muted }}>Total • {earnings.jobs} Jobs Completed</p>
             </Card>
 
             <Card>
@@ -215,22 +276,43 @@ const WorkerDashboard = ({ user, onLogout }) => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <Card style={{ height: '450px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-               <div style={{ textAlign: 'center', opacity: onDuty ? 1 : 0.3, transition: '0.5s' }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🗺️</div>
-                  <h4>Nearby Job Leads</h4>
-                  <p style={{ color: Theme.colors.muted }}>{onDuty ? "Searching for clients looking for " + selectedCategory + "..." : "Go On Duty to see leads"}</p>
-               </div>
-               
-               {onDuty && (
-                 <div style={{ position: 'absolute', top: '30%', left: '40%', cursor: 'pointer' }} onClick={() => setCalling("Client #204")}>
-                    <div className="animate-float" style={{ padding: '0.5rem', background: Theme.colors.primary, borderRadius: '8px', fontSize: '0.7rem', fontWeight: 700 }}>
-                      New Request!
+            {pendingRequests.length > 0 ? (
+              <Card style={{ borderTop: `4px solid ${Theme.colors.primary}` }}>
+                <h3 style={{ marginBottom: '1rem' }}>Direct Requests ({pendingRequests.length})</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '400px', overflowY: 'auto' }}>
+                  {pendingRequests.map(job => (
+                    <div key={job.id} style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '12px', border: `1px solid ${Theme.glass.border}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                        <h4 style={{ margin: 0 }}>{job.client?.full_name || "Unknown Client"}</h4>
+                        <span style={{ fontSize: '0.8rem', color: Theme.colors.secondary, fontWeight: 600 }}>KSh {job.price}</span>
+                      </div>
+                      <p style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: Theme.colors.muted }}>Duration: {job.duration} • Phone: {job.client?.phone_number || "Hidden"}</p>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <Button onClick={() => handleJobAction(job.id, 'active')} style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem' }}>Accept</Button>
+                        <Button variant="outline" onClick={() => handleJobAction(job.id, 'cancelled')} style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', borderColor: '#ef4444', color: '#ef4444' }}>Decline</Button>
+                      </div>
                     </div>
-                    <div style={{ width: '12px', height: '12px', background: Theme.colors.primary, borderRadius: '50%', margin: '4px auto' }}></div>
+                  ))}
+                </div>
+              </Card>
+            ) : (
+              <Card style={{ height: '450px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                 <div style={{ textAlign: 'center', opacity: onDuty ? 1 : 0.3, transition: '0.5s' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🗺️</div>
+                    <h4>Nearby Job Leads</h4>
+                    <p style={{ color: Theme.colors.muted }}>{onDuty ? "Searching for clients looking for " + selectedCategory + "..." : "Go On Duty to see leads"}</p>
                  </div>
-               )}
-            </Card>
+                 
+                 {onDuty && (
+                   <div style={{ position: 'absolute', top: '30%', left: '40%', cursor: 'pointer' }} onClick={() => setCalling("Client #204")}>
+                      <div className="animate-float" style={{ padding: '0.5rem', background: Theme.colors.primary, borderRadius: '8px', fontSize: '0.7rem', fontWeight: 700 }}>
+                        Area Scanned
+                      </div>
+                      <div style={{ width: '12px', height: '12px', background: Theme.colors.primary, borderRadius: '50%', margin: '4px auto' }}></div>
+                   </div>
+                 )}
+              </Card>
+            )}
           </div>
         </div>
       )}

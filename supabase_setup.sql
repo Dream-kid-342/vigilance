@@ -184,6 +184,15 @@ ON jobs
 FOR UPDATE
 USING (auth.uid() = client_id OR auth.uid() = worker_id);
 
+
+-- Allow admin dashboard to view all jobs (for metric calculations)
+DROP POLICY IF EXISTS "Admins view all jobs" ON jobs;
+
+CREATE POLICY "Admins view all jobs"
+ON jobs
+FOR SELECT
+USING (true);
+
 ---------------------------------------------------
 -- updated_at auto update
 ---------------------------------------------------
