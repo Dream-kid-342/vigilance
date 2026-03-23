@@ -42,6 +42,7 @@ export default function WorkerDashboard({ user, onLogout }) {
   const [avatarUrl, setAvatarUrl]         = useState(user?.avatar_url || null);
   const [gpsCoords, setGpsCoords]         = useState(null);
   const [activeTab, setActiveTab]         = useState('dashboard'); // mobile tabs
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [editProfile, setEditProfile]     = useState({ full_name: user?.full_name || '', phone_number: user?.phone_number || '', worker_bio: user?.worker_bio || '' });
   const [savingProfile, setSavingProfile] = useState(false);
   const avatarRef = useRef(null);
@@ -193,9 +194,9 @@ export default function WorkerDashboard({ user, onLogout }) {
           )}
           <ThemeToggle />
           <button
-            onClick={() => avatarRef.current?.click()}
-            style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
-            title="Change profile photo"
+            onClick={() => setShowProfileEditor(true)}
+            style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer', transition: 'transform 0.2s', ...(!showProfileEditor && { ':hover': { transform: 'scale(1.05)' } }) }}
+            title="View Profile"
           >
             <Avatar src={avatarUrl} name={user.full_name} size={36} verified={user.is_verified} />
           </button>
@@ -205,62 +206,45 @@ export default function WorkerDashboard({ user, onLogout }) {
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '1.5rem 1rem' }}>
 
-        {/* ── PROFILE HEADER ──────────────────────────────────── */}
-        <div className="section-profile">
-        <Card style={{ marginBottom: '1.5rem', padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap', background: isDark ? `linear-gradient(135deg, ${t.surface} 60%, ${t.primary}15)` : t.surface }}>
-          <button onClick={() => avatarRef.current?.click()} style={{ border: 'none', background: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
-            <Avatar src={avatarUrl} name={user.full_name} size={72} verified={user.is_verified} />
-            <span style={{ position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, background: t.primary, borderRadius: '50%', border: `2px solid ${t.surface}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem' }}>
-              {uploadingAvatar ? '…' : '📷'}
-            </span>
-          </button>
+        {/* ── PROFILE MODAL ──────────────────────────────────── */}
+        {showProfileEditor && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+            <div style={{ width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', position: 'relative', background: t.bg, borderRadius: 20, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', padding: '1.5rem' }}>
+              
+              <button onClick={() => setShowProfileEditor(false)} style={{ position: 'absolute', top: '1rem', right: '1.5rem', background: t.surfaceAlt, border: 'none', color: t.text, width: 32, height: 32, borderRadius: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>✕</button>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                <button onClick={() => avatarRef.current?.click()} style={{ border: 'none', background: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+                  <Avatar src={avatarUrl} name={user.full_name} size={84} verified={user.is_verified} />
+                  <span style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, background: t.primary, borderRadius: '50%', border: `3px solid ${t.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: '#fff' }}>
+                    {uploadingAvatar ? '…' : '📷'}
+                  </span>
+                </button>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h2 style={{ margin: 0, fontSize: '1.35rem' }}>{user.full_name}</h2>
+                  <p style={{ margin: '0.2rem 0', color: t.textMuted, fontSize: '0.9rem' }}>{selectedCat || user.expertise || 'General Worker'}</p>
+                  <Button variant="outline" size="sm" onClick={onLogout} style={{ marginTop: '0.5rem' }}>Sign Out</Button>
+                </div>
+              </div>
 
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{user.full_name}</h2>
-              {user.is_verified && <Badge color="primary">✓ Verified</Badge>}
-            </div>
-            <p style={{ margin: '0.25rem 0 0', color: t.textMuted, fontSize: '0.85rem' }}>
-              {selectedCat || user.expertise || 'Vigilance Worker'} &nbsp;·&nbsp;
-              <span style={{ color: onDuty ? t.secondary : t.textSubtle }}>
-                <span className={`status-dot ${onDuty ? 'online' : 'offline'}`} style={{ marginRight: 4 }} />
-                {onDuty ? 'On Duty' : 'Off Duty'}
-              </span>
-            </p>
-            {user.worker_bio && <p style={{ margin: '0.4rem 0 0', fontSize: '0.8rem', color: t.textMuted, lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 340 }}>{user.worker_bio}</p>}
-          </div>
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', padding: '1rem', background: t.surfaceAlt, borderRadius: 16, justifyContent: 'space-around' }}>
+                <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontWeight: 800, fontSize: '1.3rem', color: t.primary }}>{earnings.jobs}</p><p style={{ margin: 0, fontSize: '0.7rem', color: t.textMuted, textTransform: 'uppercase' }}>Jobs</p></div>
+                <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontWeight: 800, fontSize: '1.3rem', color: t.secondary }}>KSh {(earnings.total / 1000).toFixed(1)}k</p><p style={{ margin: 0, fontSize: '0.7rem', color: t.textMuted, textTransform: 'uppercase' }}>Earned</p></div>
+                <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontWeight: 800, fontSize: '1.3rem', color: t.accent }}>⭐ 4.9</p><p style={{ margin: 0, fontSize: '0.7rem', color: t.textMuted, textTransform: 'uppercase' }}>Rating</p></div>
+              </div>
 
-          <div style={{ flex: 1, minWidth: '100%' }} className="hide-desktop"></div>
-          <div style={{ display: 'flex', gap: '1rem', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'space-between', width: '100%' }} className="mobile-stats-row">
-            <div style={{ textAlign: 'center', flex: 1 }}>
-              <p style={{ margin: 0, fontWeight: 800, fontSize: '1.4rem', color: t.primary }}>{earnings.jobs}</p>
-              <p style={{ margin: 0, fontSize: '0.7rem', color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Jobs</p>
-            </div>
-            <div style={{ textAlign: 'center', flex: 1 }}>
-              <p style={{ margin: 0, fontWeight: 800, fontSize: '1.4rem', color: t.secondary }}>KSh {(earnings.total / 1000).toFixed(1)}k</p>
-              <p style={{ margin: 0, fontSize: '0.7rem', color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Earned</p>
-            </div>
-            <div style={{ textAlign: 'center', flex: 1 }}>
-              <p style={{ margin: 0, fontWeight: 800, fontSize: '1.4rem', color: t.accent }}>⭐ 4.9</p>
-              <p style={{ margin: 0, fontSize: '0.7rem', color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rating</p>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Edit Profile</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Email Address</label><div style={{ padding: '0.85rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, opacity: 0.6 }}>{user.email} 🔒</div></div>
+                <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>National ID</label><div style={{ padding: '0.85rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, opacity: 0.6 }}>{user.national_id || 'Not set'} 🔒</div></div>
+                <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Full Name</label><input value={editProfile.full_name} onChange={e => setEditProfile({...editProfile, full_name: e.target.value})} style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, outline: 'none', fontSize: '0.9rem', fontFamily: 'inherit' }} /></div>
+                <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Phone Number</label><input value={editProfile.phone_number} onChange={e => setEditProfile({...editProfile, phone_number: e.target.value})} style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, outline: 'none', fontSize: '0.9rem', fontFamily: 'inherit' }} /></div>
+                <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Worker Bio</label><textarea value={editProfile.worker_bio} onChange={e => setEditProfile({...editProfile, worker_bio: e.target.value})} style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, outline: 'none', fontSize: '0.9rem', fontFamily: 'inherit', minHeight: 90, resize: 'none' }} placeholder="Tell clients about your skills!" /></div>
+                <Button onClick={handleProfileSave} disabled={savingProfile} style={{ marginTop: '0.5rem' }}>{savingProfile ? 'Saving...' : 'Save Changes'}</Button>
+              </div>
             </div>
           </div>
-
-          <Button variant="outline" size="sm" onClick={onLogout} style={{ flexShrink: 0, width: '100%', marginTop: '0.5rem' }} className="mobile-logout-btn">Sign Out</Button>
-        </Card>
-        
-        <Card style={{ marginBottom: '1.5rem' }}>
-          <SectionHeader title="Account Settings" subtitle="Update your worker profile" />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: 400 }}>
-            <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Email Address (Locked)</label><div style={{ padding: '0.85rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, opacity: 0.6 }}>{user.email}</div></div>
-            <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>National ID (Locked)</label><div style={{ padding: '0.85rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, opacity: 0.6 }}>{user.national_id || 'Not set'}</div></div>
-            <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Full Name</label><input value={editProfile.full_name} onChange={e => setEditProfile({...editProfile, full_name: e.target.value})} style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, outline: 'none', fontSize: '0.9rem', fontFamily: 'inherit', boxSizing: 'border-box' }} /></div>
-            <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Phone Number</label><input value={editProfile.phone_number} onChange={e => setEditProfile({...editProfile, phone_number: e.target.value})} style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, outline: 'none', fontSize: '0.9rem', fontFamily: 'inherit', boxSizing: 'border-box' }} /></div>
-            <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Worker Bio</label><textarea value={editProfile.worker_bio} onChange={e => setEditProfile({...editProfile, worker_bio: e.target.value})} style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, outline: 'none', fontSize: '0.9rem', fontFamily: 'inherit', boxSizing: 'border-box', minHeight: 90, resize: 'none' }} placeholder="Professional bio" /></div>
-            <Button onClick={handleProfileSave} disabled={savingProfile} style={{ marginTop: '0.5rem' }}>{savingProfile ? 'Saving...' : 'Save Changes'}</Button>
-          </div>
-        </Card>
-        </div>
+        )}
 
         {/* ── JOB SELECTION ───────────────────────────────────── */}
         {!selectedCat ? (
@@ -432,12 +416,12 @@ export default function WorkerDashboard({ user, onLogout }) {
           { id: 'dashboard', icon: '🏠', label: 'Home' },
           { id: 'requests', icon: `🔔${pendingJobs.length > 0 ? ` (${pendingJobs.length})` : ''}`, label: 'Requests' },
           { id: 'portfolio', icon: '📁', label: 'Portfolio' },
-          { id: 'profile', icon: '👤', label: 'Profile' },
+          { id: 'profile', icon: '👤', label: 'Profile', action: () => setShowProfileEditor(true) },
         ].map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+          <button key={tab.id} onClick={tab.action || (() => setActiveTab(tab.id))} style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.15rem',
             background: 'none', border: 'none', cursor: 'pointer',
-            color: activeTab === tab.id ? t.primary : t.textMuted,
+            color: (activeTab === tab.id && tab.id !== 'profile') ? t.primary : t.textMuted,
             fontSize: '0.65rem', fontWeight: 600, fontFamily: 'inherit', padding: '0.25rem 0.5rem',
           }}>
             <span style={{ fontSize: '1.3rem' }}>{tab.icon}</span>

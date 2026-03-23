@@ -136,8 +136,10 @@ export default function ClientDashboard({ user, onLogout }) {
   const [workers, setWorkers]             = useState([]);
   const [activeJobs, setActiveJobs]       = useState([]);
   const [showPayment, setShowPayment]     = useState(null);
+  const [mpesaPhone, setMpesaPhone]       = useState(user?.phone_number || '');
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [activeTab, setActiveTab]         = useState('find');
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [editProfile, setEditProfile]     = useState({ full_name: user?.full_name || '', phone_number: user?.phone_number || '', address: user?.address || '' });
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingAvatar, setUploadAvatar]= useState(false);
@@ -191,7 +193,7 @@ export default function ClientDashboard({ user, onLogout }) {
   const fetchActiveJobs = useCallback(async () => {
     const { data } = await supabase.from('jobs')
       .select('*, worker:profiles!worker_id(id, full_name, phone_number, avatar_url, latitude, longitude, last_seen_at)')
-      .eq('client_id', user.id).in('status', ['active', 'verified_by_client']).order('created_at', { ascending: false });
+      .eq('client_id', user.id).in('status', ['pending', 'active', 'verified_by_client']).order('created_at', { ascending: false });
     if (data) setActiveJobs(data);
   }, []);
 
@@ -220,11 +222,33 @@ export default function ClientDashboard({ user, onLogout }) {
   };
 
   const handlePayment = async (jobId) => {
-    setNotif('Processing payment…');
-    setTimeout(async () => {
-      await supabase.from('jobs').update({ status: 'completed' }).eq('id', jobId);
-      setShowPayment(null); setNotif('✅ Payment complete! Job marked done.'); fetchActiveJobs();
-    }, 2000);
+    setNotif('Initiating STK Push...');
+    const job = activeJobs.find(j => j.id === jobId);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('mpesa/stkpush', {
+        body: {
+          jobId: job.id,
+          phone: mpesaPhone || user.phone_number,
+          amount: job.price,
+          accountReference: `Vigilance-${job.id.substring(0,8)}`
+        }
+      });
+
+      if (error) throw new Error(error.message);
+      if (data?.error || data?.errorMessage) throw new Error(data.error || data.errorMessage || 'STK Push Failed');
+      
+      setNotif('📲 Please enter your M-Pesa PIN on your phone.');
+      
+      // Auto-resolve after a UX delay (since we don't have webhook WS listeners in this demo)
+      setTimeout(async () => {
+        await supabase.from('jobs').update({ status: 'completed' }).eq('id', jobId);
+        setShowPayment(null); setNotif('✅ Payment marked complete! Job done.'); fetchActiveJobs();
+      }, 10000);
+
+    } catch (err) {
+      setNotif('❌ ' + err.message);
+    }
   };
 
   const filteredWorkers = workers.filter(w => w.expertise === selectedCat || !w.expertise);
@@ -252,7 +276,7 @@ export default function ClientDashboard({ user, onLogout }) {
               <h3 style={{ marginBottom: '0.25rem' }}>Settle Payment</h3>
               <p style={{ color: t.textMuted, fontSize: '0.85rem', marginBottom: '1.25rem' }}>{job.duration} job · {job.worker?.full_name}</p>
               <p style={{ fontSize: '2.2rem', fontWeight: 800, color: t.primary, marginBottom: '1.25rem' }}>KSh {job.price?.toLocaleString()}</p>
-              <Input placeholder="M-Pesa number e.g. 07XXXXXXXX" defaultValue={user.phone_number || ''} style={{ marginBottom: '1rem', textAlign: 'center' }} />
+              <Input placeholder="M-Pesa number e.g. 07XXXXXXXX" value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)} style={{ marginBottom: '1rem', textAlign: 'center' }} />
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <Button onClick={() => handlePayment(job.id)} variant="secondary" style={{ flex: 1 }}>Pay Now</Button>
                 <Button onClick={() => setShowPayment(null)} variant="outline" style={{ flex: 1 }}>Cancel</Button>
@@ -398,30 +422,39 @@ export default function ClientDashboard({ user, onLogout }) {
         )}
         </div>
 
-        {/* PROFILE EDITOR SECTION */}
-        <div className="section-profile">
-            <Card>
-              <SectionHeader title="Account Settings" subtitle="Update your client profile" />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-                <button onClick={() => avatarRef.current?.click()} style={{ border: `2px dashed ${t.border}`, background: 'none', cursor: 'pointer', borderRadius: '50%', padding: 4 }}>
-                  <Avatar src={user.avatar_url} name={user.full_name} size={64} />
+        {/* PROFILE EDITOR MODAL */}
+        {showProfileEditor && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+            <div style={{ width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', position: 'relative', background: t.bg, borderRadius: 20, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', padding: '1.5rem' }}>
+              <button onClick={() => setShowProfileEditor(false)} style={{ position: 'absolute', top: '1rem', right: '1.5rem', background: t.surfaceAlt, border: 'none', color: t.text, width: 32, height: 32, borderRadius: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>✕</button>
+              <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Account Settings</h3>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '2rem' }}>
+                <button onClick={() => avatarRef.current?.click()} style={{ border: 'none', background: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0 }}>
+                  <Avatar src={user.avatar_url} name={user.full_name} size={84} />
+                  <span style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, background: t.primary, borderRadius: '50%', border: `3px solid ${t.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: '#fff' }}>
+                    {uploadingAvatar ? '…' : '📷'}
+                  </span>
                 </button>
                 <input ref={avatarRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
-                <div>
-                  <Button variant="outline" size="sm" onClick={() => avatarRef.current?.click()} disabled={uploadingAvatar}>{uploadingAvatar ? 'Uploading...' : 'Change Photo'}</Button>
-                  <p style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: t.textMuted }}>Tap photo to upload a new one</p>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: '0 0 0.2rem', fontWeight: 600, fontSize: '1.1rem' }}>{user.full_name}</p>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: t.textMuted }}>Client Account</p>
+                  <Button variant="outline" size="sm" onClick={async () => { await supabase.from('profiles').update({ is_online: false }).eq('id', user.id); onLogout(); }} style={{ marginTop: '0.75rem' }}>Sign Out</Button>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: 400 }}>
-                <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Email Address (Locked)</label><Input value={user.email} disabled style={{ opacity: 0.6 }} /></div>
-                <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>National ID (Locked)</label><Input value={user.national_id || 'Not set'} disabled style={{ opacity: 0.6 }} /></div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Email Address</label><div style={{ padding: '0.85rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, opacity: 0.6 }}>{user.email} 🔒</div></div>
+                <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>National ID</label><div style={{ padding: '0.85rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, opacity: 0.6 }}>{user.national_id || 'Not set'} 🔒</div></div>
                 <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Full Name</label><Input value={editProfile.full_name} onChange={e => setEditProfile({...editProfile, full_name: e.target.value})} /></div>
                 <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Phone Number</label><Input value={editProfile.phone_number} onChange={e => setEditProfile({...editProfile, phone_number: e.target.value})} /></div>
                 <div><label style={{ fontSize: '0.8rem', fontWeight: 600, color: t.textMuted, marginBottom: '0.3rem', display: 'block' }}>Default Address</label><Input value={editProfile.address} onChange={e => setEditProfile({...editProfile, address: e.target.value})} placeholder="E.g. CBD, Nairobi" /></div>
-                <Button onClick={handleProfileSave} disabled={savingProfile} style={{ marginTop: '0.5rem' }}>{savingProfile ? 'Saving...' : 'Save Changes'}</Button>
+                <Button onClick={handleProfileSave} disabled={savingProfile} style={{ marginTop: '1rem' }}>{savingProfile ? 'Saving...' : 'Save Changes'}</Button>
               </div>
-            </Card>
-        </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile bottom nav */}
@@ -429,9 +462,9 @@ export default function ClientDashboard({ user, onLogout }) {
         {[
           { id: 'find', icon: '🔍', label: 'Find' },
           { id: 'active', icon: `⚡${activeJobs.length ? ` (${activeJobs.length})` : ''}`, label: 'Jobs' },
-          { id: 'profile', icon: '👤', label: 'Profile' },
+          { id: 'profile', icon: '👤', label: 'Profile', action: () => setShowProfileEditor(true) },
         ].map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.15rem', background: 'none', border: 'none', cursor: 'pointer', color: activeTab === tab.id ? t.primary : t.textMuted, fontSize: '0.65rem', fontWeight: 600, fontFamily: 'inherit', padding: '0.25rem 0.5rem' }}>
+          <button key={tab.id} onClick={tab.action || (() => setActiveTab(tab.id))} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.15rem', background: 'none', border: 'none', cursor: 'pointer', color: (activeTab === tab.id && tab.id !== 'profile') ? t.primary : t.textMuted, fontSize: '0.65rem', fontWeight: 600, fontFamily: 'inherit', padding: '0.25rem 0.5rem' }}>
             <span style={{ fontSize: '1.3rem' }}>{tab.icon}</span>
             {tab.label}
           </button>
