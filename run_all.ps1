@@ -26,3 +26,7 @@ Start-Process "http://localhost:5174"
 Start-Process "http://localhost:5175"
 
 Write-Host "✨ All systems online!" -ForegroundColor Magenta
+
+
+
+
