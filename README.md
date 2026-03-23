@@ -1,16 +1,57 @@
-# React + Vite
+# Vigilance
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Vigilance is Kenya's smartest workforce platform, connecting clients with verified local professionals for daily, weekly, or monthly jobs.
 
-Currently, two official plugins are available:
+## 🚀 Key Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Three Dedicated Portals**: Separate applications for `client`, `worker`, and `admin` to ensure isolated, clear feature sets and specialized dashboards for each role.
+- **Live GPS Tracking**: Workers can toggle an "On Duty" status to automatically broadcast their live GPS location to the Supabase backend. Clients can see their assigned worker's location updating in real time on an embedded OpenStreetMap.
+- **Real-Time Job Broadcasting**: New jobs requested by clients are instantly broadcasted via Supabase websockets to all available online workers.
+- **Modern, Mobile-First UI**: A fully custom design system using the modern `Inter` font, responsive flex/grid layouts that degrade perfectly into scrollable stacks on mobile, and interactive bottom navigation bars built exactly like native mobile apps.
+- **Dark & Light Mode**: Complete theme syncing across the platform, including forms, badges, modals, and toasts.
 
-## React Compiler
+## 📁 Project Structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+vigilance/
+├── client/          # Vite + React app for Clients (booking jobs, viewing workers)
+├── worker/          # Vite + React app for Workers (accepting jobs, radar tracking)
+├── admin/           # Vite + React app for Admins (managing platform, RLS policies)
+└── README.md
+```
 
-## Expanding the ESLint configuration
+## 🛠️ Tech Stack
+- **Frontend**: React (Vite), React Router DOM
+- **Backend & Auth**: Supabase (Postgres, Real-Time Subscriptions, Storage, Auth)
+- **Maps**: OpenStreetMap embedded via iframe
+- **Styling**: Vanilla CSS with a tailored CSS Variables Design System
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 💻 Getting Started
+
+1. **Install Dependencies**
+Run `npm install` inside each of the respective application folders (`/client`, `/worker`, `/admin`).
+
+2. **Supabase Environment**
+Make sure your `.env` files in each app directory contain:
+```
+VITE_SUPABASE_URL=your-project-url
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+3. **Start Development Servers**
+Run `npm run dev` in each directory:
+- Worker portal usually targets `http://localhost:5173`
+- Client portal usually targets `http://localhost:5174`
+- Admin portal usually targets `http://localhost:5175`
+
+## 📦 Database Requirements (Supabase)
+To ensure everything runs smoothly, your `profiles` table must include these columns:
+- `id` (uuid references auth.users)
+- `role` (text)
+- `full_name` (text)
+- `avatar_url` (text)
+- `latitude` (float8) — For GPS
+- `longitude` (float8) — For GPS
+- `last_seen_at` (timestamptz) — For GPS timeout indicators
+
+Note: Run `gps_migration.sql` to add the required tracking columns to an existing setup.
