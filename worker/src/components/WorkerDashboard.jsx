@@ -38,6 +38,7 @@ export default function WorkerDashboard({ user, onLogout }) {
   const [calling, setCalling]             = useState(null);
   const [isSuspended, setIsSuspended]     = useState(user?.is_suspended || false);
   const [pendingJobs, setPendingJobs]     = useState([]);
+  const [activeJobs, setActiveJobs]       = useState([]);
   const [earnings, setEarnings]           = useState({ total: 0, jobs: 0 });
   const [avatarUrl, setAvatarUrl]         = useState(user?.avatar_url || null);
   const [gpsCoords, setGpsCoords]         = useState(null);
@@ -72,7 +73,7 @@ export default function WorkerDashboard({ user, onLogout }) {
   });
 
   useEffect(() => {
-    fetchCategories(); fetchPendingJobs(); fetchEarnings();
+    fetchCategories(); fetchPendingJobs(); fetchActiveJobs(); fetchEarnings();
 
     const channel = supabase.channel('worker-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, fetchCategories)
@@ -81,13 +82,13 @@ export default function WorkerDashboard({ user, onLogout }) {
         if (p.new.avatar_url) setAvatarUrl(p.new.avatar_url);
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jobs', filter: `worker_id=eq.${user.id}` }, () => {
-        setNotif('🔔 New direct request from a client!'); fetchPendingJobs();
+        setNotif('🔔 New direct request from a client!'); fetchPendingJobs(); fetchActiveJobs();
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jobs' }, (p) => {
-        if (!p.new.worker_id) { setNotif('📢 New broadcast job nearby — check requests!'); fetchPendingJobs(); }
+        if (!p.new.worker_id) { setNotif('📢 New broadcast job nearby — check requests!'); fetchPendingJobs(); fetchActiveJobs(); }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jobs', filter: `worker_id=eq.${user.id}` }, () => {
-        fetchPendingJobs(); fetchEarnings();
+        fetchPendingJobs(); fetchActiveJobs(); fetchEarnings();
       })
       .subscribe();
     return () => supabase.removeChannel(channel);
@@ -102,6 +103,47 @@ export default function WorkerDashboard({ user, onLogout }) {
       .select('*, client:profiles!client_id(id, full_name, phone_number, avatar_url, address, national_id)')
       .eq('worker_id', user.id).eq('status', 'pending');
     if (data) setPendingJobs(data);
+  };
+  const checkAndAutoCompleteJobs = async (jobs) => {
+    const now = new Date().getTime();
+    const toComplete = [];
+    
+    jobs.forEach(job => {
+      if (job.status === 'active') {
+        const startedAt = new Date(job.updated_at || job.created_at).getTime();
+        const elapsedHours = (now - startedAt) / (1000 * 60 * 60);
+        
+        let shouldComplete = false;
+        if (job.duration === 'Daily' && elapsedHours >= 12) shouldComplete = true;
+        if (job.duration === 'Weekly' && elapsedHours >= (7 * 24)) shouldComplete = true;
+        if (job.duration === 'Monthly' && elapsedHours >= (30 * 24)) shouldComplete = true;
+        
+        if (shouldComplete) toComplete.push(job.id);
+      }
+    });
+
+    if (toComplete.length > 0) {
+      for (const id of toComplete) {
+        await supabase.from('jobs').update({ status: 'verified_by_client' }).eq('id', id);
+      }
+      return toComplete;
+    }
+    return [];
+  };
+
+  const fetchActiveJobs = async () => {
+    const { data } = await supabase.from('jobs')
+      .select('*, client:profiles!client_id(id, full_name, phone_number, avatar_url, address, national_id)')
+      .eq('worker_id', user.id).eq('status', 'active');
+      
+    if (data) {
+      const autoCompletedIds = await checkAndAutoCompleteJobs(data);
+      if (autoCompletedIds.length > 0) {
+        setActiveJobs(data.filter(j => !autoCompletedIds.includes(j.id)));
+      } else {
+        setActiveJobs(data);
+      }
+    }
   };
   const fetchCategories = async () => {
     const { data } = await supabase.from('categories').select('*').order('name');
@@ -119,7 +161,11 @@ export default function WorkerDashboard({ user, onLogout }) {
 
   const handleJobAction = async (jobId, status) => {
     const { error } = await supabase.from('jobs').update({ status }).eq('id', jobId);
-    if (!error) { setNotif(status === 'active' ? '✅ Request accepted!' : 'Request declined.'); fetchPendingJobs(); }
+    if (!error) { 
+        setNotif(status === 'active' ? '✅ Request accepted!' : status === 'verified_by_client' ? '✅ Marked as Done! Awaiting Payment.' : 'Request declined.'); 
+        fetchPendingJobs();
+        fetchActiveJobs();
+    }
     else setNotif('❌ ' + error.message);
   };
 
@@ -365,6 +411,36 @@ export default function WorkerDashboard({ user, onLogout }) {
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <Button onClick={() => handleJobAction(job.id, 'active')} size="sm" style={{ flex: 1 }}>✅ Accept</Button>
                             <Button onClick={() => handleJobAction(job.id, 'cancelled')} variant="danger" size="sm" style={{ flex: 1 }}>✕ Decline</Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              )}
+
+              {activeJobs.length > 0 && (
+                <Card className="section-active-jobs" style={{ borderTop: `3px solid ${t.secondary}` }}>
+                  <SectionHeader title={`My Active Jobs`} subtitle={`${activeJobs.length} in progress`} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: 420, overflowY: 'auto' }}>
+                    {activeJobs.map(job => {
+                      const c = job.client || {};
+                      return (
+                        <div key={job.id} style={{ padding: '1rem', background: t.surfaceAlt, borderRadius: 12, border: `1px solid ${t.border}` }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '0.75rem' }}>
+                            <Avatar src={c.avatar_url} name={c.full_name} size={48} />
+                            <div style={{ flex: 1 }}>
+                              <p style={{ margin: 0, fontWeight: 700 }}>{c.full_name || 'Unknown Client'}</p>
+                              {c.address && <p style={{ margin: '0.1rem 0 0', fontSize: '0.75rem', color: t.textMuted }}>📍 {c.address}</p>}
+                            </div>
+                            <span style={{ fontWeight: 800, color: t.secondary, fontSize: '0.95rem' }}>KSh {job.price?.toLocaleString()}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                            <Badge color="primary">📅 {job.duration}</Badge>
+                            {c.phone_number && <a href={`tel:${c.phone_number}`} style={{ textDecoration: 'none' }}><Badge color="muted">📞 {c.phone_number}</Badge></a>}
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <Button onClick={() => handleJobAction(job.id, 'verified_by_client')} size="sm" style={{ flex: 1, background: '#10b981', borderColor: '#10b981' }}>🏁 Mark as Done</Button>
                           </div>
                         </div>
                       );

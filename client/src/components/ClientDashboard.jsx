@@ -190,11 +190,46 @@ export default function ClientDashboard({ user, onLogout }) {
     return () => { supabase.removeChannel(ch); supabase.from('profiles').update({ is_online: false }).eq('id', user.id); };
   }, []);
 
+  const checkAndAutoCompleteJobs = async (jobs) => {
+    const now = new Date().getTime();
+    const toComplete = [];
+    
+    jobs.forEach(job => {
+      if (job.status === 'active') {
+        const startedAt = new Date(job.updated_at || job.created_at).getTime();
+        const elapsedHours = (now - startedAt) / (1000 * 60 * 60);
+        
+        let shouldComplete = false;
+        if (job.duration === 'Daily' && elapsedHours >= 12) shouldComplete = true;
+        if (job.duration === 'Weekly' && elapsedHours >= (7 * 24)) shouldComplete = true;
+        if (job.duration === 'Monthly' && elapsedHours >= (30 * 24)) shouldComplete = true;
+        
+        if (shouldComplete) toComplete.push(job.id);
+      }
+    });
+
+    if (toComplete.length > 0) {
+      for (const id of toComplete) {
+        await supabase.from('jobs').update({ status: 'verified_by_client' }).eq('id', id);
+      }
+      return toComplete;
+    }
+    return [];
+  };
+
   const fetchActiveJobs = useCallback(async () => {
     const { data } = await supabase.from('jobs')
       .select('*, worker:profiles!worker_id(id, full_name, phone_number, avatar_url, latitude, longitude, last_seen_at)')
-      .eq('client_id', user.id).in('status', ['pending', 'active', 'verified_by_client']).order('created_at', { ascending: false });
-    if (data) setActiveJobs(data);
+      .eq('client_id', user.id).order('created_at', { ascending: false });
+    
+    if (data) {
+      const autoCompletedIds = await checkAndAutoCompleteJobs(data);
+      if (autoCompletedIds.length > 0) {
+        setActiveJobs(data.map(j => autoCompletedIds.includes(j.id) ? { ...j, status: 'verified_by_client' } : j));
+      } else {
+        setActiveJobs(data);
+      }
+    }
   }, []);
 
   const fetchCategories = useCallback(async () => {
@@ -374,8 +409,8 @@ export default function ClientDashboard({ user, onLogout }) {
         {activeJobs.length > 0 ? (
           <Card style={{ marginBottom: '1.5rem' }}>
             <SectionHeader
-              title="My Active Jobs"
-              right={<Badge color="primary">{activeJobs.length} ongoing</Badge>}
+              title="My Bookings & Active Jobs"
+              right={<Badge color="primary">{activeJobs.filter(j => j.status !== 'completed' && j.status !== 'cancelled').length} ongoing</Badge>}
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {activeJobs.map(job => (
@@ -386,7 +421,9 @@ export default function ClientDashboard({ user, onLogout }) {
                       <p style={{ margin: 0, fontWeight: 700 }}>{job.worker?.full_name || 'Assigning worker…'}</p>
                       <p style={{ margin: 0, fontSize: '0.78rem', color: t.textMuted }}>
                         {job.duration} ·
-                        <span style={{ color: job.status === 'active' ? t.secondary : t.accent }}> {job.status === 'active' ? '● In Progress' : '● Pending'}</span>
+                        <span style={{ color: job.status === 'active' ? t.secondary : job.status === 'verified_by_client' ? '#10b981' : job.status === 'completed' ? '#3b82f6' : t.accent }}> 
+                          {job.status === 'active' ? '● In Progress' : job.status === 'verified_by_client' ? '● Awaiting Payment' : job.status === 'completed' ? '● Paid & Completed' : '● Pending'}
+                        </span>
                       </p>
                     </div>
                     
@@ -402,8 +439,11 @@ export default function ClientDashboard({ user, onLogout }) {
                           <Button variant="outline" size="sm">📞</Button>
                         </a>
                       )}
-                      {(job.status === 'active' || job.status === 'verified_by_client') && (
-                        <Button variant="secondary" size="sm" onClick={() => setShowPayment(job.id)}>Pay</Button>
+                      {job.status === 'verified_by_client' && (
+                        <Button style={{ background: '#10b981', borderColor: '#10b981' }} size="sm" onClick={() => setShowPayment(job.id)}>💳 Pay via M-Pesa</Button>
+                      )}
+                      {job.status === 'active' && (
+                        <Badge color="secondary">⏳ Work in Progress</Badge>
                       )}
                     </div>
                   </div>
