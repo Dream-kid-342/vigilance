@@ -324,7 +324,7 @@ export default function ClientDashboard({ user, onLogout }) {
       {/* ── TOP NAV ─────────────────────────────────────────── */}
       <nav style={{ background: t.surface, borderBottom: `1px solid ${t.border}`, padding: '0 1.5rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <img src="/src/assets/logo.jpeg" alt="Vigilance" style={{ height: 32, borderRadius: 8 }} />
+          <img src="/logo.jpeg" alt="Vigilance" style={{ height: 32, borderRadius: 8 }} />
           <span style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.02em' }}>Client Portal</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

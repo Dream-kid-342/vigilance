@@ -275,7 +275,7 @@ const App = () => {
           <h1 className="gradient-text" style={{ fontSize: '2.2rem' }}>Vigilance Command Center</h1>
           <p style={{ color: Theme.colors.muted, fontSize: '0.9rem' }}>Global Verification & Standardization</p>
         </div>
-        <img src="/src/assets/logo.jpeg" alt="Logo" style={{ height: '45px', borderRadius: '10px' }} />
+        <img src="/logo.jpeg" alt="Logo" style={{ height: '45px', borderRadius: '10px' }} />
       </header>
 
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>

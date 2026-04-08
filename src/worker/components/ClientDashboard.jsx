@@ -21,7 +21,7 @@ const ClientDashboard = ({ onLogout }) => {
         </div>
         <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
           <Button variant="outline" onClick={onLogout} style={{ fontSize: '0.8rem', padding: '0.5rem 1rem' }}>Logout</Button>
-          <img src="/src/assets/logo.jpeg" alt="Logo" style={{ height: '50px', borderRadius: '12px' }} />
+          <img src="/logo.jpeg" alt="Logo" style={{ height: '50px', borderRadius: '12px' }} />
         </div>
       </header>
 

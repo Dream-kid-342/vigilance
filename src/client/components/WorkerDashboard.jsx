@@ -69,7 +69,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <Button variant="outline" onClick={onLogout} style={{ fontSize: '0.75rem', padding: '0.5rem 1rem' }}>Logout</Button>
-          <img src="/src/assets/logo.jpeg" alt="Logo" style={{ height: '35px', borderRadius: '8px' }} />
+          <img src="/logo.jpeg" alt="Logo" style={{ height: '35px', borderRadius: '8px' }} />
         </div>
       </header>
 

@@ -121,7 +121,7 @@ export default function RoleSignup({ onSelect, initialRole = null, onBack }) {
             {onBack && (
               <button onClick={onBack} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', fontSize: '1.8rem', padding: '0 0.5rem', fontFamily: 'inherit' }} title="Back to home">←</button>
             )}
-            <img src="/src/assets/logo.jpeg" alt="Vigilance" style={{ height: 32, borderRadius: 8 }} onError={e => { e.target.style.display = 'none'; }} />
+            <img src="/logo.jpeg" alt="Vigilance" style={{ height: 32, borderRadius: 8 }} onError={e => { e.target.style.display = 'none'; }} />
           </div>
           <ThemeToggle />
         </div>
@@ -155,7 +155,7 @@ export default function RoleSignup({ onSelect, initialRole = null, onBack }) {
         <div style={pageStyle}>
           <div className="mobile-px mobile-py" style={{ ...cardStyle, boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <img src="/src/assets/logo.jpeg" alt="Vigilance" style={{ height: 36, borderRadius: 8 }} />
+              <img src="/logo.jpeg" alt="Vigilance" style={{ height: 36, borderRadius: 8 }} />
               <ThemeToggle />
             </div>
             <h2 style={{ margin: '0 0 0.25rem' }}>Join Vigilance</h2>

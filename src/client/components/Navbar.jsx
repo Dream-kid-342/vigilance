@@ -16,7 +16,7 @@ const Navbar = () => {
       borderBottom: '1px solid var(--border)'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <img src="/src/assets/logo.jpeg" alt="Vigilance Logo" style={{ height: '40px', borderRadius: '8px' }} />
+        <img src="/logo.jpeg" alt="Vigilance Logo" style={{ height: '40px', borderRadius: '8px' }} />
         <span style={{ fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em', color: 'var(--primary)' }}>VIGILANCE</span>
       </div>
       
