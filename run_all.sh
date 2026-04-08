@@ -10,19 +10,15 @@ if [ -f .env ]; then
   export $(grep -v '^#' .env | xargs)
 fi
 
-CLIENT_PORT=${VIGILANCE_CLIENT_PORT:-5173}
-WORKER_PORT=${VIGILANCE_WORKER_PORT:-5174}
-ADMIN_PORT=${VIGILANCE_ADMIN_PORT:-5175}
+PORT=${PORT:-5173}
 
-# Start Apps
-(cd client && npm run dev -- --port $CLIENT_PORT) &
-echo "✅ Client App starting on http://localhost:$CLIENT_PORT"
+# Start Unified App
+npm run dev -- --port $PORT &
+echo "✅ Unified App starting on http://localhost:$PORT"
 
-(cd worker && npm run dev -- --port $WORKER_PORT) &
-echo "✅ Worker App starting on http://localhost:$WORKER_PORT"
-
-(cd admin && npm run dev -- --port $ADMIN_PORT) &
-echo "✅ Admin App starting on http://localhost:$ADMIN_PORT"
+echo "  ✅ Client      → http://localhost:$PORT/client"
+echo "  ✅ Worker      → http://localhost:$PORT/worker"
+echo "  ✅ Admin       → http://localhost:$PORT/admin"
 
 echo "✨ All systems firing!"
 wait
