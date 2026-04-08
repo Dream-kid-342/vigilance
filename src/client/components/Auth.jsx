@@ -112,7 +112,7 @@ export default function RoleSignup({ onSelect, initialRole = null, onBack }) {
   /* ── VIEWS ────────────────────────────────────────────────── */
   const renderLogin = () => (
     <div style={pageStyle}>
-      <div style={cardStyle}>
+      <div className="mobile-px mobile-py" style={{ ...cardStyle, boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             {onBack && (
@@ -150,7 +150,7 @@ export default function RoleSignup({ onSelect, initialRole = null, onBack }) {
       /* ─ Step 1: Role select ─ */
       case 1: return (
         <div style={pageStyle}>
-          <div style={cardStyle}>
+          <div className="mobile-px mobile-py" style={{ ...cardStyle, boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 {onBack && (
@@ -195,7 +195,7 @@ export default function RoleSignup({ onSelect, initialRole = null, onBack }) {
       /* ─ Step 2: Basic info ─ */
       case 2: return (
         <div style={pageStyle}>
-          <div style={cardStyle}>
+          <div className="mobile-px mobile-py" style={{ ...cardStyle, boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', fontSize: '1.8rem', padding: '0 0.5rem' }}>←</button>
               <Badge color={role === 'worker' ? 'primary' : 'green'}>{role === 'worker' ? 'Worker Registration' : 'Client Registration'}</Badge>
@@ -218,7 +218,7 @@ export default function RoleSignup({ onSelect, initialRole = null, onBack }) {
       /* ─ Step 3: Identity + photo ─ */
       case 3: return (
         <div style={pageStyle}>
-          <div style={cardStyle}>
+          <div className="mobile-px mobile-py" style={{ ...cardStyle, boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <button onClick={() => setStep(2)} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', fontSize: '1.8rem', padding: '0 0.5rem' }}>←</button>
               <Badge color="primary">Step 2 of 2</Badge>

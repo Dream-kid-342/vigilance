@@ -255,7 +255,7 @@ export default function WorkerDashboard({ user, onLogout }) {
         {/* ── PROFILE MODAL ──────────────────────────────────── */}
         {showProfileEditor && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-            <div style={{ width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', position: 'relative', background: t.bg, borderRadius: 20, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', padding: '1.5rem' }}>
+            <div className="mobile-px" style={{ width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', position: 'relative', background: t.bg, borderRadius: 20, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', padding: '1.5rem' }}>
               
               <button onClick={() => setShowProfileEditor(false)} style={{ position: 'absolute', top: '1rem', right: '1.5rem', background: t.surfaceAlt, border: 'none', color: t.text, width: 32, height: 32, borderRadius: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>✕</button>
               
@@ -306,12 +306,12 @@ export default function WorkerDashboard({ user, onLogout }) {
             </div>
             <Divider />
             <p style={{ color: t.textMuted, fontSize: '0.85rem', margin: '1rem 0 0.75rem' }}>Or type a custom job:</p>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <div className="mobile-stack" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <input
                 placeholder="E.g. Painter, Tutor, Chef"
                 value={customJob}
                 onChange={e => setCustomJob(e.target.value)}
-                style={{ padding: '0.7rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, outline: 'none', fontSize: '0.9rem', fontFamily: 'inherit', width: 220 }}
+                style={{ flex: 1, padding: '0.7rem 1rem', borderRadius: 10, background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, outline: 'none', fontSize: '0.9rem', fontFamily: 'inherit', minWidth: 220 }}
               />
               <Button disabled={!customJob} onClick={() => { if (customJob) { setSelectedCat(customJob); supabase.from('profiles').update({ expertise: customJob }).eq('id', user.id); } }}>
                 Start Custom Job

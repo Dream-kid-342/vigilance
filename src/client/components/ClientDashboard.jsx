@@ -21,7 +21,7 @@ function WorkerModal({ worker, onClose, onBook, duration, price }) {
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
       <div onClick={e => e.stopPropagation()} className="fade-in" style={{ width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', background: t.surface, borderRadius: 20, border: `1px solid ${t.border}`, boxShadow: t.shadowLg }}>
         {/* Hero */}
-        <div style={{ padding: '2rem 2rem 1.25rem', background: `linear-gradient(135deg, ${t.primary}20, ${t.secondary}10)`, borderRadius: '20px 20px 0 0', position: 'relative' }}>
+        <div className="mobile-px" style={{ padding: '2rem 2rem 1.25rem', background: `linear-gradient(135deg, ${t.primary}20, ${t.secondary}10)`, borderRadius: '20px 20px 0 0', position: 'relative' }}>
           <button onClick={onClose} style={{ position: 'absolute', top: '1rem', right: '1rem', background: t.surfaceAlt, border: `1px solid ${t.border}`, color: t.text, width: 32, height: 32, borderRadius: '50%', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem' }}>
             <Avatar src={worker.avatar_url} name={worker.full_name} size={80} verified={worker.is_verified} />
@@ -48,7 +48,7 @@ function WorkerModal({ worker, onClose, onBook, duration, price }) {
         </div>
 
         {/* Body */}
-        <div style={{ padding: '1.5rem 2rem 2rem' }}>
+        <div className="mobile-px" style={{ padding: '1.5rem 2rem 2rem' }}>
           {worker.worker_bio && (
             <>
               <p style={{ margin: '0 0 0.5rem', fontSize: '0.72rem', color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>About</p>
@@ -465,7 +465,7 @@ export default function ClientDashboard({ user, onLogout }) {
         {/* PROFILE EDITOR MODAL */}
         {showProfileEditor && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-            <div style={{ width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', position: 'relative', background: t.bg, borderRadius: 20, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', padding: '1.5rem' }}>
+            <div className="mobile-px" style={{ width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', position: 'relative', background: t.bg, borderRadius: 20, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', padding: '1.5rem' }}>
               <button onClick={() => setShowProfileEditor(false)} style={{ position: 'absolute', top: '1rem', right: '1.5rem', background: t.surfaceAlt, border: 'none', color: t.text, width: 32, height: 32, borderRadius: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>✕</button>
               <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Account Settings</h3>
               

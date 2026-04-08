@@ -3,8 +3,8 @@ import { Theme, Card, Button } from '../shared/UI';
 
 const AdminApp = () => {
   return (
-    <div style={{ padding: '2rem' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
+    <div className="mobile-px mobile-py" style={{ padding: '2rem' }}>
+      <header className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '3rem' }}>
         <div>
           <h1 className="gradient-text" style={{ fontSize: '2.5rem' }}>Command Center</h1>
           <p style={{ color: Theme.colors.muted }}>Global Monitoring & Infrastructure Management</p>
@@ -15,7 +15,7 @@ const AdminApp = () => {
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
         {[
           { label: "Active Workers", value: "2,841", color: Theme.colors.primary },
           { label: "Pending NITA", value: "156", color: Theme.colors.accent },
@@ -29,7 +29,7 @@ const AdminApp = () => {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+      <div className="grid-2" style={{ gap: '2rem' }}>
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
             <h3>Verification Pipeline</h3>
